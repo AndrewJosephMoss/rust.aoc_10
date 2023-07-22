@@ -1,4 +1,6 @@
-use nom::{branch::alt, bytes::complete::tag, character::complete::digit1, IResult};
+use std::collections::VecDeque;
+
+use nom::{branch::alt, bytes::complete::tag, IResult};
 
 #[derive(PartialEq, Debug)]
 enum Instruction {
@@ -7,11 +9,74 @@ enum Instruction {
 }
 
 pub fn process_part_1(input: &str) -> isize {
-    13140
+    let instructions = parse_instructions(input);
+    let mut signal: isize = 1;
+    let mut mod_20_signals = Vec::<isize>::new();
+    let mut cycle: isize = 1;
+    instructions.iter().for_each(|instr| match instr {
+        Instruction::Add(val) => {
+            add_mod_20_signal(&signal, &mut mod_20_signals, &cycle);
+            cycle += 1;
+            add_mod_20_signal(&signal, &mut mod_20_signals, &cycle);
+            cycle += 1;
+            signal += *val;
+        }
+        Instruction::Noop => {
+            add_mod_20_signal(&signal, &mut mod_20_signals, &cycle);
+            cycle += 1;
+        }
+    });
+    let total: isize = mod_20_signals.iter().sum();
+    total
 }
 
-fn parse_instructions(input: &str) -> Vec<Instruction> {
-    let instructions: Vec<Instruction> = input
+pub fn process_part_2(input: &str) -> String {
+    let instructions = parse_instructions(input);
+    let mut signal: isize = 1;
+    let mut cycle: isize = 1;
+    let mut screen = String::new();
+    instructions.iter().for_each(|instr| match instr {
+        Instruction::Add(val) => {
+            add_pixel(&cycle, &signal, &mut screen);
+            cycle += 1;
+            add_pixel(&cycle, &signal, &mut screen);
+            cycle += 1;
+            signal += *val;
+        }
+        Instruction::Noop => {
+            add_pixel(&cycle, &signal, &mut screen);
+            cycle += 1;
+        }
+    });
+    screen.to_owned()
+}
+
+fn add_pixel(cycle: &isize, signal: &isize, screen: &mut String) {
+    let cyc = if *cycle > 40 {
+        *cycle - 40 * (*cycle / 40)
+    } else {
+        *cycle
+    };
+    if (cyc - *signal - 1).abs() <= 1 {
+        screen.push('#');
+    } else {
+        screen.push('.');
+    }
+    if *cycle % 40 == 0 {
+        screen.push('\n');
+    }
+}
+
+fn add_mod_20_signal(signal: &isize, mod_20_signals: &mut Vec<isize>, cycle: &isize) {
+    if (cycle - 20) % 40 != 0 {
+        return;
+    };
+    let signal_str: isize = signal * (*cycle as isize);
+    mod_20_signals.push(signal_str);
+}
+
+fn parse_instructions(input: &str) -> VecDeque<Instruction> {
+    let instructions: VecDeque<Instruction> = input
         .lines()
         .map(|line| {
             let instruction: Instruction = alt((parse_add, parse_noop))(line).unwrap().1;
@@ -42,6 +107,12 @@ mod tests {
         let input = fs::read_to_string("test-input.txt").unwrap();
         let result = process_part_1(&input);
         assert_eq!(result, 13140);
+    }
+
+    #[test]
+    fn test_process_part_2() {
+        let input = fs::read_to_string("test-input.txt").unwrap();
+        let result = process_part_2(&input);
     }
 
     #[test]
